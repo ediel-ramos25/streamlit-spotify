@@ -43,10 +43,8 @@ def main(db_path):
     # SAFE CSV PATH (IMPORTANT FIX)
     # ======================================================
 
-    BASE_DIR = os.path.dirname(__file__)
-    csv_path = os.path.join(BASE_DIR, "spotify_50000.csv")
-
-    df = pd.read_csv(csv_path)
+    CSV_PATH = os.path.join(os.path.dirname(__file__), "spotify_50000.csv")
+    df = pd.read_csv(CSV_PATH)
 
     df = df.dropna(subset=["track_name", "artists", "track_genre"])
 
