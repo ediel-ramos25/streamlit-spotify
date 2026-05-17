@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import pandas as pd
 
@@ -39,13 +40,17 @@ def main(db_path):
     conn.commit()
 
     # ======================================================
-    # LOAD CSV (5000 SAMPLE DATASET)
+    # SAFE CSV PATH (IMPORTANT FIX)
     # ======================================================
 
-    df = pd.read_csv("spotify_50000.csv")
+    BASE_DIR = os.path.dirname(__file__)
+    csv_path = os.path.join(BASE_DIR, "spotify_50000.csv")
 
-    # Clean missing values (important for stability)
+    df = pd.read_csv(csv_path)
+
     df = df.dropna(subset=["track_name", "artists", "track_genre"])
+
+    print("ROWS LOADED:", len(df))
 
     # ======================================================
     # INSERT GENRES
@@ -54,10 +59,10 @@ def main(db_path):
     genres = df["track_genre"].unique()
 
     for g in genres:
-        cursor.execute("""
-            INSERT OR IGNORE INTO genres (genre_name)
-            VALUES (?)
-        """, (g,))
+        cursor.execute(
+            "INSERT OR IGNORE INTO genres (genre_name) VALUES (?)",
+            (g,)
+        )
 
     # ======================================================
     # INSERT ARTISTS
@@ -66,10 +71,10 @@ def main(db_path):
     artists = df["artists"].unique()
 
     for a in artists:
-        cursor.execute("""
-            INSERT OR IGNORE INTO artists (artist)
-            VALUES (?)
-        """, (a,))
+        cursor.execute(
+            "INSERT OR IGNORE INTO artists (artist) VALUES (?)",
+            (a,)
+        )
 
     conn.commit()
 
@@ -81,7 +86,7 @@ def main(db_path):
     artist_map = dict(cursor.execute("SELECT artist, artist_id FROM artists"))
 
     # ======================================================
-    # INSERT TRACKS (FAST BULK BUILD)
+    # BULK INSERT TRACKS (FAST + SAFE)
     # ======================================================
 
     track_rows = []
@@ -91,7 +96,7 @@ def main(db_path):
         g_id = genre_map.get(row["track_genre"])
         a_id = artist_map.get(row["artists"])
 
-        if g_id and a_id:
+        if g_id is not None and a_id is not None:
 
             track_rows.append((
                 row["track_name"],
@@ -106,29 +111,31 @@ def main(db_path):
             ))
 
     cursor.executemany("""
-        INSERT INTO tracks (
-            track_name,
-            artist_id,
-            genre_id,
-            popularity,
-            danceability,
-            energy,
-            valence,
-            tempo,
-            duration_ms
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tracks (
+        track_name,
+        artist_id,
+        genre_id,
+        popularity,
+        danceability,
+        energy,
+        valence,
+        tempo,
+        duration_ms
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, track_rows)
 
     conn.commit()
     conn.close()
 
-    print("Database created successfully from spotify_50000.csv")
+    print("DATABASE CREATED SUCCESSFULLY")
 
 
 # ======================================================
-# RUN SCRIPT DIRECTLY
+# RUN
 # ======================================================
 
 if __name__ == "__main__":
-    main("spotify.db")
+    BASE_DIR = os.path.dirname(__file__)
+    DB_PATH = os.path.join(BASE_DIR, "spotify.db")
+    main(DB_PATH)
