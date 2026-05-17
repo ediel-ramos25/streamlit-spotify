@@ -1,6 +1,4 @@
 import sqlite3
-import os
-import pandas as pd
 
 
 def main(db_path):
@@ -33,24 +31,11 @@ def main(db_path):
         energy REAL,
         valence REAL,
         tempo REAL,
-        duration_ms INTEGER,
-        FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
-        FOREIGN KEY (genre_id) REFERENCES genres(genre_id)
+        duration_ms INTEGER
     );
     """)
 
     conn.commit()
-
-    # ======================================================
-    # OPTIONAL SAMPLE DATA (replace with your dataset load)
-    # ======================================================
-
-    print("Database created successfully.")
-
     conn.close()
 
-
-if __name__ == "__main__":
-    BASE_DIR = os.path.dirname(__file__)
-    DB_PATH = os.path.join(BASE_DIR, "spotify.db")
-    main(DB_PATH)
+    print("Database created successfully")
