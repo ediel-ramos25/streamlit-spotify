@@ -9,7 +9,47 @@ import matplotlib.pyplot as plt
 
 
 # ======================================================
-# CONFIGURACIÓN
+# CACHE: CARGA DEL DATASET (CSV)
+# ======================================================
+
+@st.cache_data
+def load_data():
+    df = pd.read_csv("data/spotify.csv")
+    return df
+
+
+# ======================================================
+# CACHE: CONEXIÓN A BASE DE DATOS
+# ======================================================
+
+@st.cache_resource
+def get_connection():
+    return sqlite3.connect("spotify.db", check_same_thread=False)
+
+
+conn = get_connection()
+
+
+# ======================================================
+# CACHE: QUERIES SQL GENÉRICAS
+# ======================================================
+
+@st.cache_data(ttl=3600)
+def cached_query(query, params=None):
+    if params is None:
+        params = ()
+    return pd.read_sql_query(query, conn, params=params)
+
+
+# ======================================================
+# CARGA DATASET (SOLO SI LO USAS PARA RECONSTRUIR DB)
+# ======================================================
+
+df = load_data()
+
+
+# ======================================================
+# CONFIG STREAMLIT
 # ======================================================
 
 st.set_page_config(
@@ -22,26 +62,17 @@ st.markdown("Análisis de música con SQLite + Streamlit")
 
 
 # ======================================================
-# CONEXIÓN DB
-# ======================================================
-
-conn = sqlite3.connect("spotify.db", check_same_thread=False)
-
-
-# ======================================================
-# FUNCIONES AUX
+# FUNCIONES SQL (USANDO CACHE)
 # ======================================================
 
 def load_genres():
-    return pd.read_sql_query(
-        "SELECT genre_name FROM genres ORDER BY genre_name",
-        conn
-    )
+    query = """
+    SELECT genre_name
+    FROM genres
+    ORDER BY genre_name
+    """
+    return cached_query(query)
 
-
-# ======================================================
-# QUERY PRINCIPAL (CORRECTA)
-# ======================================================
 
 def get_filtered_tracks(selected_genre, search_text, search_artist, popularity_min):
 
@@ -81,12 +112,8 @@ def get_filtered_tracks(selected_genre, search_text, search_artist, popularity_m
 
     query += " ORDER BY t.popularity DESC"
 
-    return pd.read_sql_query(query, conn, params=params)
+    return cached_query(query, tuple(params))
 
-
-# ======================================================
-# TOP ARTISTS (CORREGIDO)
-# ======================================================
 
 def top_artists_query(selected_genre):
 
@@ -118,12 +145,8 @@ def top_artists_query(selected_genre):
     LIMIT 10
     """
 
-    return pd.read_sql_query(query, conn, params=params)
+    return cached_query(query, tuple(params))
 
-
-# ======================================================
-# FEATURES
-# ======================================================
 
 def duration_by_genre_query():
 
@@ -144,7 +167,7 @@ def duration_by_genre_query():
     LIMIT 15
     """
 
-    return pd.read_sql_query(query, conn)
+    return cached_query(query)
 
 
 # ======================================================
@@ -166,7 +189,7 @@ popularity_min = st.sidebar.slider("Popularidad mínima", 0, 100, 50)
 
 
 # ======================================================
-# DATA
+# DATA PRINCIPAL
 # ======================================================
 
 filtered_tracks = get_filtered_tracks(
@@ -189,12 +212,14 @@ col1.metric("Canciones", len(filtered_tracks))
 
 col2.metric(
     "Popularidad promedio",
-    round(filtered_tracks["popularity"].mean(), 2) if not filtered_tracks.empty else 0
+    round(filtered_tracks["popularity"].mean(), 2)
+    if not filtered_tracks.empty else 0
 )
 
 col3.metric(
     "Energía promedio",
-    round(filtered_tracks["energy"].mean(), 2) if not filtered_tracks.empty else 0
+    round(filtered_tracks["energy"].mean(), 2)
+    if not filtered_tracks.empty else 0
 )
 
 
@@ -215,7 +240,10 @@ st.subheader("Energy vs Danceability")
 fig1, ax1 = plt.subplots()
 
 if not filtered_tracks.empty:
-    ax1.scatter(filtered_tracks["energy"], filtered_tracks["danceability"])
+    ax1.scatter(
+        filtered_tracks["energy"],
+        filtered_tracks["danceability"]
+    )
 
 ax1.set_xlabel("Energy")
 ax1.set_ylabel("Danceability")
@@ -233,7 +261,10 @@ artists_df = top_artists_query(selected_genre)
 
 fig2, ax2 = plt.subplots()
 
-ax2.bar(artists_df["artist"], artists_df["avg_popularity"])
+ax2.bar(
+    artists_df["artist"],
+    artists_df["avg_popularity"]
+)
 
 ax2.set_xlabel("Artista")
 ax2.set_ylabel("Popularidad")
@@ -247,13 +278,16 @@ st.pyplot(fig2)
 # DURACIÓN
 # ======================================================
 
-st.subheader("Duración promedio por género")
+st.subheader("⏱ Duración promedio por género")
 
 length_df = duration_by_genre_query()
 
 fig3, ax3 = plt.subplots()
 
-ax3.bar(length_df["genre_name"], length_df["avg_minutes"])
+ax3.bar(
+    length_df["genre_name"],
+    length_df["avg_minutes"]
+)
 
 ax3.set_xlabel("Género")
 ax3.set_ylabel("Minutos")
@@ -264,8 +298,7 @@ st.pyplot(fig3)
 
 
 # ======================================================
-# CLOSE
+# CLOSE (NO NECESARIO CERRAR EN STREAMLIT, PERO SE DEJA)
 # ======================================================
 
 conn.close()
-
