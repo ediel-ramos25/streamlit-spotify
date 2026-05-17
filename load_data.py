@@ -1,51 +1,67 @@
-# =========================================================
-# IMPORTAR LIBRERÍAS
-# =========================================================
+# ======================================================
+# create_db.py
+# ======================================================
 
 import pandas as pd
 import sqlite3
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
 
 
-# =========================================================
-# LEER EL ARCHIVO CSV
-# =========================================================
+# ======================================================
+# DOWNLOAD DATASET FROM KAGGLE
+# ======================================================
 
-# Cargar el dataset de Spotify
-df = pd.read_csv("data/spotify.csv")
+print("Downloading Spotify dataset...")
 
-print("EXITO: CSV cargado correctamente.")
-
-df = df.assign(artist=df["artists"].str.split(";")).explode("artist")
-# =========================================================
-# CREAR / CONECTAR A LA BASE DE DATOS
-# =========================================================
-
-# Crear el archivo spotify.db
-conn = sqlite3.connect("spotify.db")
-
-print("EXITO: Base de datos creada y conexión establecida.")
-
-
-# =========================================================
-# CREAR TABLA DE ARTISTAS
-# =========================================================
-
-# Obtener artistas únicos
-
-artists_df = (
-    df.assign(artist=df["artists"].str.split(";"))
-      .explode("artist")[["artist"]]
-      .drop_duplicates()
-      .reset_index(drop=True)
+df = kagglehub.load_dataset(
+    KaggleDatasetAdapter.PANDAS,
+    "maharshipandya/-spotify-tracks-dataset",
+    "dataset.csv"
 )
 
-# Crear un artist_id automático
+print("Dataset loaded successfully.")
+
+
+# ======================================================
+# CLEAN DATA
+# ======================================================
+
+# Split artists by ";"
+df = df.assign(
+    artist=df["artists"].str.split(";")
+).explode("artist")
+
+# Remove extra spaces
+df["artist"] = df["artist"].str.strip()
+
+
+# ======================================================
+# CREATE SQLITE DATABASE
+# ======================================================
+
+conn = sqlite3.connect("spotify.db")
+
+print("Database connection established.")
+
+
+# ======================================================
+# CREATE ARTISTS TABLE
+# ======================================================
+
+artists_df = (
+    df[["artist"]]
+    .drop_duplicates()
+    .reset_index(drop=True)
+)
+
 artists_df["artist_id"] = artists_df.index + 1
 
-# Reordenar columnas
-artists_df = artists_df[["artist_id", "artist"]]
+artists_df = artists_df[[
+    "artist_id",
+    "artist"
+]]
 
-# Guardar tabla en SQLite
 artists_df.to_sql(
     "artists",
     conn,
@@ -53,28 +69,30 @@ artists_df.to_sql(
     index=False
 )
 
-print("EXITO: Tabla artists creada.")
+print("artists table created.")
 
 
-# =========================================================
-# CREAR TABLA DE GÉNEROS
-# =========================================================
+# ======================================================
+# CREATE GENRES TABLE
+# ======================================================
 
-# Obtener géneros únicos
-genres_df = df[["track_genre"]].drop_duplicates().reset_index(drop=True)
+genres_df = (
+    df[["track_genre"]]
+    .drop_duplicates()
+    .reset_index(drop=True)
+)
 
-# Crear genre_id automático
 genres_df["genre_id"] = genres_df.index + 1
 
-# Renombrar columna
 genres_df = genres_df.rename(
     columns={"track_genre": "genre_name"}
 )
 
-# Reordenar columnas
-genres_df = genres_df[["genre_id", "genre_name"]]
+genres_df = genres_df[[
+    "genre_id",
+    "genre_name"
+]]
 
-# Guardar tabla en SQLite
 genres_df.to_sql(
     "genres",
     conn,
@@ -82,26 +100,19 @@ genres_df.to_sql(
     index=False
 )
 
-print("EXITO: Tabla genres creada.")
+print("genres table created.")
 
 
-# =========================================================
-# AGREGAR artist_id AL DATAFRAME ORIGINAL
-# =========================================================
+# ======================================================
+# MERGE IDS
+# ======================================================
 
-# Hacer merge para obtener artist_id
 df = df.merge(
     artists_df,
     on="artist",
     how="left"
 )
 
-
-# =========================================================
-# AGREGAR genre_id AL DATAFRAME ORIGINAL
-# =========================================================
-
-# Hacer merge para obtener genre_id
 df = df.merge(
     genres_df,
     left_on="track_genre",
@@ -110,11 +121,10 @@ df = df.merge(
 )
 
 
-# =========================================================
-# CREAR TABLA TRACKS
-# =========================================================
+# ======================================================
+# CREATE TRACKS TABLE
+# ======================================================
 
-# Seleccionar columnas importantes
 tracks_df = df[[
     "track_id",
     "track_name",
@@ -136,7 +146,6 @@ tracks_df = df[[
     "time_signature"
 ]]
 
-# Guardar tabla tracks
 tracks_df.to_sql(
     "tracks",
     conn,
@@ -144,37 +153,34 @@ tracks_df.to_sql(
     index=False
 )
 
-print("EXITO: Tabla tracks creada.")
+print("tracks table created.")
 
 
-# =========================================================
-# VERIFICAR CANTIDAD DE REGISTROS
-# =========================================================
+# ======================================================
+# VERIFY TABLES
+# ======================================================
 
 cursor = conn.cursor()
 
-# Contar tracks
 cursor.execute("SELECT COUNT(*) FROM tracks")
 tracks_count = cursor.fetchone()[0]
 
-# Contar artistas
 cursor.execute("SELECT COUNT(*) FROM artists")
 artists_count = cursor.fetchone()[0]
 
-# Contar géneros
 cursor.execute("SELECT COUNT(*) FROM genres")
 genres_count = cursor.fetchone()[0]
 
-print("\n========== RESUMEN ==========")
+print("\n========== DATABASE SUMMARY ==========")
 print(f"Tracks: {tracks_count}")
 print(f"Artists: {artists_count}")
 print(f"Genres: {genres_count}")
 
 
-# =========================================================
-# CERRAR CONEXIÓN
-# =========================================================
+# ======================================================
+# CLOSE CONNECTION
+# ======================================================
 
 conn.close()
 
-print("\nEXITO: Datos insertados y conexión cerrada.")
+print("\nDatabase successfully created.")
