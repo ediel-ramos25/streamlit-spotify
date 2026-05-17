@@ -7,20 +7,24 @@ import pandas as pd
 import sqlite3
 import matplotlib.pyplot as plt
 
+# Install dependencies as needed:
+# pip install kagglehub[pandas-datasets]
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
 
-# ======================================================
-# CACHE: CARGA DEL DATASET (CSV)
-# ======================================================
+# Set the path to the file you'd like to load
+file_path = ""
 
-@st.cache_data
-def load_data():
-    df = pd.read_csv("data/spotify.csv")
-    return df
-
-
-# ======================================================
-# CACHE: CONEXIÓN A BASE DE DATOS
-# ======================================================
+# Load the latest version
+df = kagglehub.load_dataset(
+  KaggleDatasetAdapter.PANDAS,
+  "maharshipandya/-spotify-tracks-dataset",
+  file_path,
+  # Provide any additional arguments like 
+  # sql_query or pandas_kwargs. See the 
+  # documenation for more information:
+  # https://github.com/Kaggle/kagglehub/blob/main/README.md#kaggledatasetadapterpandas
+)
 
 @st.cache_resource
 def get_connection():
@@ -39,13 +43,6 @@ def cached_query(query, params=None):
     if params is None:
         params = ()
     return pd.read_sql_query(query, conn, params=params)
-
-
-# ======================================================
-# CARGA DATASET (SOLO SI LO USAS PARA RECONSTRUIR DB)
-# ======================================================
-
-df = load_data()
 
 
 # ======================================================
