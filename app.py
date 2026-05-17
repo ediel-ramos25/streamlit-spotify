@@ -170,3 +170,6 @@ ax.set_xlabel("Energy")
 ax.set_ylabel("Danceability")
 
 st.pyplot(fig)
+
+st.cache_data.clear()
+st.cache_resource.clear()
