@@ -27,6 +27,10 @@ Each record includes:
 - liveness
 
 ---
+## Installing spotify.csv
+
+- Go to https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
+- Download the .csv file as spotify.csv
 
 ## 🗄️ Data loading
 
