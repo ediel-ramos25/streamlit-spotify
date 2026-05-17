@@ -1,11 +1,28 @@
 # ======================================================
-# app.py
+# IMPORTS
 # ======================================================
 
+import os
 import streamlit as st
 import pandas as pd
 import sqlite3
 import matplotlib.pyplot as plt
+
+
+# ======================================================
+# AUTO-CREATE DATABASE IF MISSING
+# ======================================================
+
+# If spotify.db does not exist,
+# automatically run create_db.py
+
+if not os.path.exists("spotify.db"):
+
+    st.info("Database not found. Creating database...")
+
+    import create_db
+
+    st.success("Database created successfully.")
 
 
 # ======================================================
@@ -17,7 +34,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🎧 Spotify Analytics Dashboard")
+st.title("Spotify Analytics Dashboard")
 st.markdown("Music analytics using SQLite + Streamlit")
 
 
@@ -27,10 +44,12 @@ st.markdown("Music analytics using SQLite + Streamlit")
 
 @st.cache_resource
 def get_connection():
+
     return sqlite3.connect(
         "spotify.db",
         check_same_thread=False
     )
+
 
 conn = get_connection()
 
@@ -257,7 +276,7 @@ filtered_tracks = get_filtered_tracks(
 # METRICS
 # ======================================================
 
-st.subheader("📊 Summary")
+st.subheader("Summary")
 
 col1, col2, col3 = st.columns(3)
 
@@ -289,7 +308,7 @@ col3.metric(
 # DATAFRAME
 # ======================================================
 
-st.subheader("📋 Filtered Data")
+st.subheader("Filtered Data")
 
 st.dataframe(
     filtered_tracks.head(50)
@@ -300,7 +319,7 @@ st.dataframe(
 # SCATTER PLOT
 # ======================================================
 
-st.subheader("⚡ Energy vs Danceability")
+st.subheader("Energy vs Danceability")
 
 fig1, ax1 = plt.subplots()
 
@@ -321,7 +340,7 @@ st.pyplot(fig1)
 # TOP ARTISTS CHART
 # ======================================================
 
-st.subheader("🔥 Top 10 Artists")
+st.subheader("Top 10 Artists")
 
 artists_df = top_artists_query(
     selected_genre
@@ -346,7 +365,7 @@ st.pyplot(fig2)
 # DURATION CHART
 # ======================================================
 
-st.subheader("⏱ Average Duration by Genre")
+st.subheader("Average Duration by Genre")
 
 length_df = duration_by_genre_query()
 
