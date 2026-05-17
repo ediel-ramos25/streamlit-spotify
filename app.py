@@ -5,7 +5,7 @@ import sqlite3
 import matplotlib.pyplot as plt
 
 # ======================================================
-# DB PATH (STREAMLIT SAFE)
+# DB PATH
 # ======================================================
 
 BASE_DIR = os.path.dirname(__file__)
@@ -13,32 +13,41 @@ DB_PATH = os.path.join(BASE_DIR, "spotify.db")
 
 
 # ======================================================
-# DATABASE AUTO-REPAIR (FIXED)
+# FORCE DATABASE CREATION USING create_db.py
 # ======================================================
 
 def ensure_database():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
 
-    # Check if genres table exists
-    cursor.execute("""
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='genres';
-    """)
+    db_exists = os.path.exists(DB_PATH)
 
-    exists = cursor.fetchone()
+    if not db_exists:
+        st.info("Creating database from create_db.py...")
 
-    conn.close()
+        import create_db
+        create_db.main(DB_PATH)
 
-    if exists:
-        return
+        st.success("Database created successfully.")
 
-    st.warning("Database missing or corrupted. Rebuilding...")
+    else:
+        # Double-check table exists (prevents broken DB)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
 
-    import create_db
-    create_db.main(DB_PATH)
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='genres';
+        """)
 
-    st.success("Database ready.")
+        exists = cursor.fetchone()
+        conn.close()
+
+        if not exists:
+            st.warning("Database incomplete. Rebuilding...")
+
+            import create_db
+            create_db.main(DB_PATH)
+
+            st.success("Database repaired.")
 
 
 ensure_database()
@@ -81,15 +90,11 @@ def cached_query(query, params=None):
 # ======================================================
 
 def load_genres():
-    try:
-        return cached_query("""
-            SELECT genre_name
-            FROM genres
-            ORDER BY genre_name
-        """)
-    except Exception as e:
-        st.error(f"DB Error: {e}")
-        return pd.DataFrame({"genre_name": []})
+    return cached_query("""
+        SELECT genre_name
+        FROM genres
+        ORDER BY genre_name
+    """)
 
 
 # ======================================================
