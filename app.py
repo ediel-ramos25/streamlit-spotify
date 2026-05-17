@@ -1,7 +1,3 @@
-# ======================================================
-# IMPORTS
-# ======================================================
-
 import os
 import streamlit as st
 import pandas as pd
@@ -9,7 +5,7 @@ import sqlite3
 import matplotlib.pyplot as plt
 
 # ======================================================
-# DATABASE PATH (FIXED FOR STREAMLIT CLOUD)
+# DB PATH (STREAMLIT SAFE)
 # ======================================================
 
 BASE_DIR = os.path.dirname(__file__)
@@ -17,56 +13,66 @@ DB_PATH = os.path.join(BASE_DIR, "spotify.db")
 
 
 # ======================================================
-# AUTO-CREATE DATABASE IF MISSING
+# DATABASE AUTO-REPAIR (FIXED)
 # ======================================================
 
 def ensure_database():
-    if not os.path.exists(DB_PATH):
-        st.info("Database not found. Creating database...")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-        import create_db
-        create_db.main(DB_PATH)
+    # Check if genres table exists
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='genres';
+    """)
 
-        st.success("Database created successfully.")
+    exists = cursor.fetchone()
+
+    conn.close()
+
+    if exists:
+        return
+
+    st.warning("Database missing or corrupted. Rebuilding...")
+
+    import create_db
+    create_db.main(DB_PATH)
+
+    st.success("Database ready.")
 
 
 ensure_database()
 
 
 # ======================================================
-# PAGE CONFIG
+# STREAMLIT CONFIG
 # ======================================================
 
-st.set_page_config(
-    page_title="Spotify Analytics Dashboard",
-    layout="wide"
-)
+st.set_page_config(page_title="Spotify Dashboard", layout="wide")
 
 st.title("Spotify Analytics Dashboard")
-st.markdown("Music analytics using SQLite + Streamlit")
+st.markdown("SQLite + Streamlit Music Analytics")
 
 
 # ======================================================
-# DATABASE CONNECTION
+# CONNECTION
 # ======================================================
 
 @st.cache_resource
 def get_connection():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-
 conn = get_connection()
 
 
 # ======================================================
-# SAFE SQL QUERY FUNCTION
+# SAFE QUERY FUNCTION
 # ======================================================
 
 @st.cache_data(ttl=3600)
 def cached_query(query, params=None):
     if params is None:
         params = ()
-
     return pd.read_sql_query(query, conn, params=params)
 
 
@@ -75,16 +81,19 @@ def cached_query(query, params=None):
 # ======================================================
 
 def load_genres():
-    query = """
-    SELECT genre_name
-    FROM genres
-    ORDER BY genre_name
-    """
-    return cached_query(query)
+    try:
+        return cached_query("""
+            SELECT genre_name
+            FROM genres
+            ORDER BY genre_name
+        """)
+    except Exception as e:
+        st.error(f"DB Error: {e}")
+        return pd.DataFrame({"genre_name": []})
 
 
 # ======================================================
-# FILTERED TRACKS
+# FILTER TRACKS
 # ======================================================
 
 def get_filtered_tracks(selected_genre, search_text, search_artist, popularity_min):
@@ -107,10 +116,7 @@ def get_filtered_tracks(selected_genre, search_text, search_artist, popularity_m
     AND t.track_name LIKE ?
     """
 
-    params = [
-        popularity_min,
-        f"%{search_text}%"
-    ]
+    params = [popularity_min, f"%{search_text}%"]
 
     if selected_genre != "Todos":
         query += " AND g.genre_name = ?"
@@ -162,17 +168,17 @@ def top_artists_query(selected_genre):
 # ======================================================
 
 def duration_by_genre_query():
-    query = """
-    SELECT
-        g.genre_name,
-        AVG(t.duration_ms) / 60000.0 AS avg_minutes
-    FROM tracks t
-    JOIN genres g ON t.genre_id = g.genre_id
-    GROUP BY g.genre_name
-    ORDER BY avg_minutes DESC
-    LIMIT 15
-    """
-    return cached_query(query)
+
+    return cached_query("""
+        SELECT
+            g.genre_name,
+            AVG(t.duration_ms) / 60000.0 AS avg_minutes
+        FROM tracks t
+        JOIN genres g ON t.genre_id = g.genre_id
+        GROUP BY g.genre_name
+        ORDER BY avg_minutes DESC
+        LIMIT 15
+    """)
 
 
 # ======================================================
@@ -195,7 +201,7 @@ popularity_min = st.sidebar.slider("Minimum popularity", 0, 100, 50)
 
 
 # ======================================================
-# MAIN DATA
+# DATA
 # ======================================================
 
 filtered_tracks = get_filtered_tracks(
@@ -267,7 +273,7 @@ fig2, ax2 = plt.subplots()
 ax2.bar(artists_df["artist"], artists_df["avg_popularity"])
 
 ax2.set_xlabel("Artist")
-ax2.set_ylabel("Average Popularity")
+ax2.set_ylabel("Avg Popularity")
 
 plt.xticks(rotation=45)
 
@@ -275,7 +281,7 @@ st.pyplot(fig2)
 
 
 # ======================================================
-# DURATION BY GENRE
+# DURATION
 # ======================================================
 
 st.subheader("Average Duration by Genre")
