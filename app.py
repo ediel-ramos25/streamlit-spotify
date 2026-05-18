@@ -21,21 +21,21 @@ def init_db():
 
         conn = sqlite3.connect(DB_PATH)
 
-        # ARTISTS
+        # ARTISTS TABLE
         artists = df[["artists"]].drop_duplicates().reset_index(drop=True)
         artists["artist_id"] = range(1, len(artists) + 1)
         artists.to_sql("artists", conn, if_exists="replace", index=False)
 
-        # GENRES
+        # GENRES TABLE
         genres = df[["genre"]].drop_duplicates().reset_index(drop=True)
         genres["genre_id"] = range(1, len(genres) + 1)
         genres.to_sql("genres", conn, if_exists="replace", index=False)
 
-        # MAP KEYS
+        # MAP KEYS INTO TRACKS
         df = df.merge(artists, on="artists", how="left")
         df = df.merge(genres, on="genre", how="left")
 
-        # TRACKS
+        # TRACKS TABLE
         tracks = df[[
             "track_name",
             "artists",
@@ -48,13 +48,15 @@ def init_db():
             "valence",
             "tempo",
             "duration_ms"
-        ]]
+        ]].copy()
 
         tracks.insert(0, "track_id", range(1, len(tracks) + 1))
 
         tracks.to_sql("tracks", conn, if_exists="replace", index=False)
 
         conn.close()
+
+init_db()
 
 # ----------------------------
 # CONNECTION
@@ -70,15 +72,15 @@ def get_data(query):
         conn.close()
 
 # ----------------------------
-# LOAD DATA (RELATIONAL QUERY)
+# LOAD DATA (FIXED JOIN)
 # ----------------------------
 def load_tracks():
     query = """
     SELECT
         t.track_id,
         t.track_name,
-        a.artist_name,
-        g.genre_name,
+        a.artists,
+        g.genre,
         t.popularity,
         t.danceability,
         t.energy,
@@ -86,7 +88,7 @@ def load_tracks():
         t.tempo,
         t.duration_ms
     FROM tracks t
-    JOIN artists a ON t.artists = a.artists
+    JOIN artists a ON t.artist_id = a.artist_id
     JOIN genres g ON t.genre_id = g.genre_id
     """
     return get_data(query)
@@ -96,14 +98,14 @@ df = load_tracks()
 # ----------------------------
 # UI
 # ----------------------------
-st.title("Spotify Dashboard (Relational DB)")
+st.title("Spotify Dashboard (Relational DB Fixed)")
 
 st.sidebar.header("Filters")
 
 # ----------------------------
-# GENRE FILTER (SAFE)
+# GENRE FILTER
 # ----------------------------
-genre_col = "genre_name"
+genre_col = "genre"
 
 genres = df[genre_col].dropna().unique()
 selected_genre = st.sidebar.selectbox("Select Genre", ["All"] + list(genres))
