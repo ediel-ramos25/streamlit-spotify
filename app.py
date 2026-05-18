@@ -21,11 +21,40 @@ def init_db():
 
         conn = sqlite3.connect(DB_PATH)
 
-        df.to_sql("tracks", conn, if_exists="replace", index=False)
+        # ARTISTS
+        artists = df[["artists"]].drop_duplicates().reset_index(drop=True)
+        artists["artist_id"] = range(1, len(artists) + 1)
+        artists.to_sql("artists", conn, if_exists="replace", index=False)
+
+        # GENRES
+        genres = df[["genre"]].drop_duplicates().reset_index(drop=True)
+        genres["genre_id"] = range(1, len(genres) + 1)
+        genres.to_sql("genres", conn, if_exists="replace", index=False)
+
+        # MAP KEYS
+        df = df.merge(artists, on="artists", how="left")
+        df = df.merge(genres, on="genre", how="left")
+
+        # TRACKS
+        tracks = df[[
+            "track_name",
+            "artists",
+            "genre",
+            "artist_id",
+            "genre_id",
+            "popularity",
+            "danceability",
+            "energy",
+            "valence",
+            "tempo",
+            "duration_ms"
+        ]]
+
+        tracks.insert(0, "track_id", range(1, len(tracks) + 1))
+
+        tracks.to_sql("tracks", conn, if_exists="replace", index=False)
 
         conn.close()
-
-init_db()
 
 # ----------------------------
 # CONNECTION
