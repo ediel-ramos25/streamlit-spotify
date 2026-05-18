@@ -163,7 +163,27 @@ st.markdown("Análisis de música con SQLite + Streamlit")
 # ======================================================
 # FUNCIONES SQL (USANDO CACHE)
 # ======================================================
+def load_tracks(min_popularity, search_text):
+    query = """
+    SELECT
+        t.track_name,
+        a.artist_name,
+        g.genre_name,
+        t.popularity,
+        t.danceability,
+        t.energy,
+        t.valence,
+        t.tempo,
+        t.duration_ms
+    FROM tracks t
+    JOIN artists a ON t.artist_id = a.artist_id
+    JOIN genres g ON t.genre_id = g.genre_id
+    WHERE t.popularity >= ?
+    AND t.track_name LIKE ?
+    ORDER BY t.popularity DESC
+    """
 
+    return pd.read_sql(query, conn, params=(min_popularity, f"%{search_text}%"))
 def load_genres():
     query = """
     SELECT genre_name
