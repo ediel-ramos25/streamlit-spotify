@@ -57,7 +57,7 @@ def load_tracks():
         t.tempo,
         t.duration_ms
     FROM tracks t
-    JOIN artists a ON t.artist_id = a.artist_id
+    JOIN artists a ON t.artists = a.artists
     JOIN genres g ON t.genre_id = g.genre_id
     """
     return get_data(query)
