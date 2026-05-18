@@ -4,6 +4,22 @@ import sqlite3
 import os
 import plotly.express as px
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "spotify.db")
+CSV_PATH = os.path.join(BASE_DIR, "spotify_50000.csv")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_csv(CSV_PATH)
+
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+
+    df.to_sql("tracks", conn, if_exists="replace", index=False)
+
+    conn.close()
+
+init_db()
+
 # ----------------------------
 # PATH FIX (VERY IMPORTANT)
 # ----------------------------
