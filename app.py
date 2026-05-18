@@ -4,66 +4,88 @@ import sqlite3
 import os
 import plotly.express as px
 
+# ----------------------------
+# PATHS
+# ----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "spotify.db")
 CSV_PATH = os.path.join(BASE_DIR, "spotify_50000.csv")
 
+# ----------------------------
+# INIT DB (SAFE - ONLY IF MISSING)
+# ----------------------------
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_csv(CSV_PATH)
+    if not os.path.exists(DB_PATH):
+        df = pd.read_csv(CSV_PATH)
+        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
 
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+        conn = sqlite3.connect(DB_PATH)
 
-    df.to_sql("tracks", conn, if_exists="replace", index=False)
+        df.to_sql("tracks", conn, if_exists="replace", index=False)
 
-    conn.close()
+        conn.close()
 
 init_db()
 
 # ----------------------------
-# PATH FIX (VERY IMPORTANT)
+# CONNECTION
 # ----------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "spotify.db")
+def get_conn():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-# ----------------------------
-# DB CONNECTION
-# ----------------------------
 def get_data(query):
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    return df
+    conn = get_conn()
+    try:
+        return pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
 
 # ----------------------------
-# LOAD DATA
+# LOAD DATA (RELATIONAL QUERY)
 # ----------------------------
 def load_tracks():
-    query = "SELECT * FROM tracks"
+    query = """
+    SELECT
+        t.track_id,
+        t.track_name,
+        a.artist_name,
+        g.genre_name,
+        t.popularity,
+        t.danceability,
+        t.energy,
+        t.valence,
+        t.tempo,
+        t.duration_ms
+    FROM tracks t
+    JOIN artists a ON t.artist_id = a.artist_id
+    JOIN genres g ON t.genre_id = g.genre_id
+    """
     return get_data(query)
 
 df = load_tracks()
 
-
-st.title("Spotify Dashboard")
+# ----------------------------
+# UI
+# ----------------------------
+st.title("Spotify Dashboard (Relational DB)")
 
 st.sidebar.header("Filters")
 
-# Genre filter (safe fallback)
-if "genre" in df.columns:
-    genres = df["genre"].dropna().unique()
-    selected_genre = st.sidebar.selectbox("Select Genre", ["All"] + list(genres))
-else:
-    selected_genre = "All"
+# ----------------------------
+# GENRE FILTER (SAFE)
+# ----------------------------
+genre_col = "genre_name"
 
-# Filter dataset
+genres = df[genre_col].dropna().unique()
+selected_genre = st.sidebar.selectbox("Select Genre", ["All"] + list(genres))
+
 filtered_df = df.copy()
 
 if selected_genre != "All":
-    filtered_df = filtered_df[filtered_df["genre"] == selected_genre]
+    filtered_df = filtered_df[filtered_df[genre_col] == selected_genre]
 
 # ----------------------------
-# KPIs
+# KPI METRICS
 # ----------------------------
 st.subheader("Overview")
 
@@ -74,7 +96,7 @@ col2.metric("Avg Popularity", round(filtered_df["popularity"].mean(), 2))
 col3.metric("Avg Tempo", round(filtered_df["tempo"].mean(), 2))
 
 # ----------------------------
-# Charts
+# CHARTS
 # ----------------------------
 st.subheader("Popularity Distribution")
 
@@ -93,7 +115,7 @@ fig2 = px.scatter(
 st.plotly_chart(fig2)
 
 # ----------------------------
-# DATA TABLE
+# TABLE
 # ----------------------------
 st.subheader("Raw Data")
 st.dataframe(filtered_df)
