@@ -115,7 +115,7 @@ for _, row in df.iterrows():
 conn.commit()
 conn.close()
 
-print("Database created successfully with normalized tables.")
+st.write("Database created successfully with normalized tables.")
 
 
 
