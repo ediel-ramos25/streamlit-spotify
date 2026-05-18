@@ -7,6 +7,115 @@ import pandas as pd
 import sqlite3
 import matplotlib.pyplot as plt
 
+# Load CSV
+df = pd.read_csv("spotify_50000.csv")
+
+# Connect (this will overwrite your DB)
+conn = sqlite3.connect("spotify.db")
+cur = conn.cursor()
+
+# -------------------------
+# DROP OLD TABLES (IMPORTANT)
+# -------------------------
+cur.execute("DROP TABLE IF EXISTS tracks")
+cur.execute("DROP TABLE IF EXISTS artists")
+cur.execute("DROP TABLE IF EXISTS genres")
+
+# -------------------------
+# CREATE TABLES
+# -------------------------
+cur.execute("""
+CREATE TABLE artists (
+    artist_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artist_name TEXT UNIQUE
+)
+""")
+
+cur.execute("""
+CREATE TABLE genres (
+    genre_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    genre_name TEXT UNIQUE
+)
+""")
+
+cur.execute("""
+CREATE TABLE tracks (
+    track_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_name TEXT,
+    artist_id INTEGER,
+    genre_id INTEGER,
+    popularity REAL,
+    danceability REAL,
+    energy REAL,
+    valence REAL,
+    tempo REAL,
+    duration_ms INTEGER,
+    FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
+    FOREIGN KEY (genre_id) REFERENCES genres(genre_id)
+)
+""")
+
+# -------------------------
+# INSERT UNIQUE ARTISTS
+# -------------------------
+artists = df["artists"].dropna().unique()
+
+artist_map = {}
+for a in artists:
+    cur.execute("INSERT INTO artists (artist_name) VALUES (?)", (a,))
+    artist_map[a] = cur.lastrowid
+
+# -------------------------
+# INSERT UNIQUE GENRES
+# -------------------------
+genres = df["track_genre"].dropna().unique()
+
+genre_map = {}
+for g in genres:
+    cur.execute("INSERT INTO genres (genre_name) VALUES (?)", (g,))
+    genre_map[g] = cur.lastrowid
+
+# -------------------------
+# INSERT TRACKS
+# -------------------------
+for _, row in df.iterrows():
+    artist_id = artist_map.get(row["artists"])
+    genre_id = genre_map.get(row["track_genre"])
+
+    cur.execute("""
+        INSERT INTO tracks (
+            track_name,
+            artist_id,
+            genre_id,
+            popularity,
+            danceability,
+            energy,
+            valence,
+            tempo,
+            duration_ms
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        row["track_name"],
+        artist_id,
+        genre_id,
+        row["popularity"],
+        row["danceability"],
+        row["energy"],
+        row["valence"],
+        row["tempo"],
+        row["duration_ms"]
+    ))
+
+conn.commit()
+conn.close()
+
+print("Database created successfully with normalized tables.")
+
+
+
+
+
 df = pd.read_csv("spotify_50000.csv")
 
 @st.cache_resource
@@ -280,8 +389,6 @@ st.pyplot(fig3)
 # ======================================================
 # CLOSE (NO NECESARIO CERRAR EN STREAMLIT, PERO SE DEJA)
 # ======================================================
-if os.path.exists("spotify.db"):
-    os.remove("spotify.db")
 
 
 conn.close()
