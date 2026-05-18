@@ -280,5 +280,8 @@ st.pyplot(fig3)
 # ======================================================
 # CLOSE (NO NECESARIO CERRAR EN STREAMLIT, PERO SE DEJA)
 # ======================================================
+if os.path.exists("spotify.db"):
+    os.remove("spotify.db")
+
 
 conn.close()
