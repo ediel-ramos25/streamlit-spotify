@@ -128,7 +128,12 @@ def get_connection():
     return sqlite3.connect("spotify.db", check_same_thread=False)
 
 
+
+
 conn = get_connection()
+
+tables = pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", conn)
+st.write("Tables in DB:", tables)
 
 
 # ======================================================
