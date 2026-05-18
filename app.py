@@ -7,6 +7,11 @@ import pandas as pd
 import sqlite3
 import matplotlib.pyplot as plt
 
+
+import os
+
+st.write("DB exists:", os.path.exists("spotify.db"))
+st.write("Current working dir:", os.getcwd())
 # Load CSV
 df = pd.read_csv("spotify_50000.csv")
 
