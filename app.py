@@ -137,7 +137,7 @@ genre_list = ["Todos"] + genres_df["genre_name"].tolist()
 selected_genre = st.sidebar.selectbox("Género", genre_list)
 search_text = st.sidebar.text_input("Buscar canción")
 search_artist = st.sidebar.text_input("Buscar artista")
-min_pop = st.sidebar.slider("Popularidad mínima", 0, 100, 50)
+min_pop = st.sidebar.slider("Popularidad mínima", 0, 100, 0)
 
 # ======================================================
 # DATA
