@@ -77,7 +77,7 @@ def load_tracks():
     SELECT
         t.track_id,
         t.track_name,
-        a.artists,
+        a.artist_name,
         g.genre_name,
         t.popularity,
         t.danceability,
