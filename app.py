@@ -422,3 +422,4 @@ st.pyplot(fig3)
 
 
 conn.close()
+st.cache_resource.clear()
